@@ -1,0 +1,285 @@
+<{php}>
+//*********************   custom main menu    *********************//
+// There must be an easier way to achieve this but this is what I  //
+// came up with. Smarty programming seems to be acting wierd in a  //
+// template so i have to do it the old fashioned way: straight PHP //
+// Broke up the menu building into simple functions to keep HTML   //
+// tags out of the menu code. ONLY EDIT THE $htmlcode="..."; LINES //
+// It's dirty but it works.                                        //
+// -xoopstuner                                                     //
+//*****************************************************************//
+
+//mini template for custom main menu
+function xtnrMenu($Menu,$activeModuleName,$activeModuleLink,$activeModuleSublinks){
+	$htmlcode="
+	| <a href=".XOOPS_URL." >Home</a> |$Menu
+	";
+	return $htmlcode;
+}
+
+
+//mini template for menu link and sublinks placement
+function xtnrMenuLink($linktitle,$link,$sublinks){
+	$htmlcode="
+	<a href=$link >$linktitle</a> |
+	";
+	return $htmlcode;
+}
+
+
+//mini template for menu link when there are no sublinks, active takes precidence
+function xtnrMenuLinkEmpty($linktitle,$link){
+	$htmlcode="
+	<a href=$link >$linktitle</a> |
+	";
+	return $htmlcode;
+}
+
+
+//mini template for menu link and sublinks placement for currently selected module
+function xtnrMenuLinkActive($linktitle,$link,$sublinks){
+	$htmlcode="
+	<strong><a href=$link >$linktitle</a></strong> |
+	";
+	return $htmlcode;
+}
+
+
+//mini template for sublinks 
+function xtnrMenuSublink($linktitle,$link){
+	$htmlcode="
+	---<a href=$link >$linktitle</a><br>
+	";
+	return $htmlcode;
+}
+
+
+//mini template for sublinks of currently active module
+function xtnrMenuSublinkActive($linktitle,$link){
+	$htmlcode="
+	---<a href=$link >$linktitle</a>-active<br>
+	";
+	return $htmlcode;
+}
+
+
+
+	
+	//modified main menu block code
+	global $xoopsUser,$xoopsModule,$customMainMenu,$activeModuleName,$activeModuleLink,$activeModuleSublinks,$temp;
+	$block = array();
+	$block['lang_home'] = _MB_SYSTEM_HOME;
+	$block['lang_close'] = _CLOSE;
+	$module_handler =& xoops_gethandler('module');
+	$criteria = new CriteriaCompo(new Criteria('hasmain', 1));
+	$criteria->add(new Criteria('isactive', 1));
+	$criteria->add(new Criteria('weight', 0, '>'));
+	$modules =& $module_handler->getObjects($criteria, true);
+	$moduleperm_handler =& xoops_gethandler('groupperm');
+	$groups = is_object($xoopsUser) ? $xoopsUser->getGroups() : XOOPS_GROUP_ANONYMOUS;
+	$read_allowed =& $moduleperm_handler->getItemIds('module_read', $groups);
+	foreach (array_keys($modules) as $i) {	
+		if (in_array($i, $read_allowed)) {
+			$modulesname = $modules[$i]->getVar('name');
+			$moduledirectory = $modules[$i]->getVar('dirname');
+			$sublinks =& $modules[$i]->subLink();
+			$sublinkshtmlout = '';
+
+
+			if (empty($xoopsModule)) {
+				//system module; fill in defaults
+				$mid=-1;
+				$activeModuleName="Home";
+				$activeModuleLink=XOOPS_URL;
+				$activeModuleSublinks='';
+			} else {
+				$mid=$xoopsModule->getVar('mid');
+			}
+			
+
+			//build sublinks for module
+			if ((count($sublinks) > 0)) {
+				if ($i == $mid) {
+					foreach($sublinks as $sublink){
+						//current active  module
+						$sublinkshtmlout =$sublinkshtmlout.xtnrMenuSublinkActive ($sublink['name'],XOOPS_URL.'/modules/'.$modules[$i]->getVar('dirname').'/'.$sublink['url'] );
+						$activeModuleSublinks =$activeModuleSublinks.xtnrMenuSublinkActive ($sublink['name'],XOOPS_URL.'/modules/'.$modules[$i]->getVar('dirname').'/'.$sublink['url'] );
+					}	
+				} else {
+					foreach($sublinks as $sublink){
+						//not current active module
+						$sublinkshtmlout =$sublinkshtmlout.xtnrMenuSublink     ($sublink['name'],XOOPS_URL.'/modules/'.$modules[$i]->getVar('dirname').'/'.$sublink['url'] );
+					}
+				}
+			} else {
+				$block['modules'][$i]['sublinks'] = array();
+			}
+
+
+			
+			// Build Main Menu Link From mini template
+			if ($i == $mid) {	
+				//current active module
+				$activeModuleName = $modulesname;
+				$customMainMenu = $customMainMenu.xtnrMenuLinkActive($modulesname, XOOPS_URL.'/modules/'.$moduledirectory, $sublinkshtmlout);
+				$activeModuleLink = $activeModuleLink.xtnrMenuLinkActive($modulesname, XOOPS_URL.'/modules/'.$moduledirectory, $sublinkshtmlout); 
+			} else {
+				//not current active module
+				if ($sublinkshtmlout==''){
+					$customMainMenu =$customMainMenu.xtnrMenuLinkEmpty($modulesname, XOOPS_URL.'/modules/'.$moduledirectory);
+				} else {
+					$customMainMenu =$customMainMenu.xtnrMenuLink($modulesname, XOOPS_URL.'/modules/'.$moduledirectory, $sublinkshtmlout);
+				}
+			}
+									
+		}
+	}
+	$customMainMenu = xtnrMenu($customMainMenu,$activeModuleName,$activeModuleLink,$activeModuleSublinks);
+	//no output if no modules
+	if (count(array_keys($modules))==0) {$customMainMenu ='';}
+
+<{/php}>
+<HTML>
+<HEAD>
+<meta http-equiv="content-type" content="text/html; charset=<{$xoops_charset}>" />
+<meta http-equiv="content-language" content="<{$xoops_langcode}>" />
+<meta name="robots" content="<{$xoops_meta_robots}>" />
+<meta name="keywords" content="<{$xoops_meta_keywords}>" />
+<meta name="description" content="<{$xoops_meta_description}>" />
+<meta name="rating" content="<{$xoops_meta_rating}>" />
+<meta name="author" content="<{$xoops_meta_author}>" />
+<meta name="copyright" content="<{$xoops_meta_copyright}>" />
+<meta name="generator" content="XOOPS" />
+<title><{$xoops_sitename}> - <{$xoops_pagetitle}></title>
+<link href="<{$xoops_url}>/favicon.ico" rel="SHORTCUT ICON" />
+<link rel="stylesheet" type="text/css" media="screen" href="<{$xoops_url}>/xoops.css" />
+<link rel="stylesheet" type="text/css" media="screen" href="<{$xoops_themecss}>" />
+<!-- RMV: added module header -->
+<{$xoops_module_header}>
+<script type="text/javascript">
+<!--
+<{$xoops_js}>
+//-->
+</script> 
+</HEAD>
+
+<body>
+<table width="900" border="0" align="center" cellpadding="0" cellspacing="0" >
+  <tr>
+    <td height="87" background="<{$xoops_imageurl}>images/logoback.jpg"><img src="<{$xoops_imageurl}>images/logo.gif" width="900" height="87"></td>
+  </tr>
+  <tr>
+    <td><table width="100%" border="0" cellspacing="0" cellpadding="10">
+      <tr>
+        <td><{php}>echo ($customMainMenu);<{/php}></td>
+      </tr>
+    </table></td>
+  </tr>  
+</table>
+<table width="900" border="0" align="center" cellpadding="0" cellspacing="3">
+  <tr>
+    <td width="725" valign="top"><img src="<{$xoops_imageurl}>welcome<{php}>echo (rand()%2);<{/php}>.jpg" width="725" height="377">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_01.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_03.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_03.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_04.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_05.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_05.gif" WIDTH=16 HEIGHT=20 ALT=" "></td>
+    <td  bgcolor="#EAEAEA"><{$xoops_contents}></td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_07.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_07.gif" WIDTH=20 HEIGHT=20 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_08.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_09.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_09.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_10.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+</table>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_01.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_03.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_03.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_04.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_01.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_03.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_03.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_04.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_05.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_05.gif" WIDTH=16 HEIGHT=20 ALT=" "></td>
+    <td  bgcolor="#EAEAEA"><{foreach item=block from=$xoops_clblocks}>
+      <div class="blockContent"><{$block.content}></div>
+      <{/foreach}></td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_07.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_07.gif" WIDTH=20 HEIGHT=20 ALT=" "></td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_05.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_05.gif" WIDTH=16 HEIGHT=20 ALT=" "></td>
+    <td  bgcolor="#EAEAEA"><{foreach item=block from=$xoops_crblocks}>
+      <div class="blockContent"><{$block.content}></div>
+      <{/foreach}></td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_07.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_07.gif" WIDTH=20 HEIGHT=20 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_08.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_09.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_09.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_10.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_08.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_09.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_09.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_10.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+</table>
+
+<IMG src="<{$xoops_imageurl}>images/spacer.gif" WIDTH=20 HEIGHT=10 ALT=" ">
+
+<{foreach item=block from=$xoops_ccblocks}>
+<table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_01.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_03.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_03.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_04.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_05.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_05.gif" WIDTH=16 HEIGHT=20 ALT=" "></td>
+    <td  bgcolor="#EAEAEA">
+      <div class="blockContent"><{$block.content}></div>
+      </td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_07.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_07.gif" WIDTH=20 HEIGHT=20 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_08.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_09.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_09.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_10.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+</table><IMG src="<{$xoops_imageurl}>images/spacer.gif" WIDTH=20 HEIGHT=10 ALT=" ">
+<{/foreach}>
+</td>
+	<td valign="top"><table width="100%" height="377" border="0" cellpadding="0" cellspacing="0">
+      <tr>
+        <td valign="top"><{foreach item=block from=$xoops_lblocks}><div class="blockTitle"><{$block.title}></div><span class="blockContent"><{$block.content}></span><{/foreach}>      </td>
+      </tr>
+    </table>
+    <p><{foreach item=block from=$xoops_rblocks}><span class="blockTitle"><{$block.title}></span><span class="blockContent"><{$block.content}></span><{/foreach}></p>
+    </td>
+  </tr>
+</table><table width="900" border="0" align="center" cellpadding="0" cellspacing="0" >
+  <tr>
+    <td ><table width="100%" border="0" cellspacing="0" cellpadding="0">
+  <tr>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_01.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+    <td background="<{$xoops_imageurl}>images/apple-main_03.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_03.gif" WIDTH=9 HEIGHT=11 ALT=" "></td>
+    <td width="20"><IMG src="<{$xoops_imageurl}>images/apple-main_04.gif" WIDTH=20 HEIGHT=11 ALT=" "></td>
+  </tr>
+  <tr>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_05.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_05.gif" WIDTH=16 HEIGHT=20 ALT=" "></td>
+    <td  bgcolor="#EAEAEA">
+      <div class="blockContent">
+        <div align="center">
+          <p><{php}>echo ($customMainMenu);<{/php}><br>
+Copyright 2006</p>
+          </div>
+      </div>      </td>
+    <td width="20" background="<{$xoops_imageurl}>images/apple-main_07.gif"><IMG src="<{$xoops_imageurl}>images/apple-main_07.gif" WIDTH=20 HEIGHT=20 ALT=" "></td>
+  </tr>
+</table></td>
+  </tr>
+</table>
+</body>
+</html>

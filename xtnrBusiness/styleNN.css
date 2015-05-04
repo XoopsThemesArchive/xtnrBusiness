@@ -1,0 +1,5 @@
+@import url(style.css); 
+/* Very short Gecko-specific additions/changes here (if 
+any) */ 
+
+.blockTitle {width: 170px; background-color: #EFEFEF; font-weight:bold; display: block; margin-bottom: 1px; padding: 4px; border-right: 2px solid #204B08; border-left: 8px solid #204B08;font-size:12px; color: #204B08;}
